@@ -8,8 +8,10 @@
 \usepackage{fancyhdr}
 \usepackage{lastpage}
 \usepackage{appendix}
+\usepackage{mdframed}
 \usepackage{color}
 \usepackage{palatino}
+\usepackage{mathtools}
 \usepackage{changepage}
 \usepackage{subcaption}
 \usepackage{enumitem}
@@ -17,6 +19,9 @@
 \usepackage{verbatim}
 \usepackage[cache=false]{minted}
 \usepackage[ruled,vlined]{algorithm2e}
+
+\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
 
 \usemintedstyle{default}
 \setminted{
@@ -40,56 +45,86 @@
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0.4pt}
 
+\newtheorem{theorem}{Theorem}
+
 
 %%% --- %%% --- DOCUMENT START --- %%% --- %%%
 \begin{document}
 \maketitle
-\thispagestyle{empty}
-\tableofcontents
-\newpage
-%%% Counting pages now %%%
 \pagestyle{fancy}
-\setcounter{page}{1}
-
 
 \section{Introduction}
 
+This assignment tries to empirically verify Theorem 3.5 (here
+\ref{theo1}) from \cite[p.~49]{motwani}, running the
+\textbf{LazySelect} algorithm for different values of $n$ and $k$ to
+establish the asymptotic behaviour of the number of comparisons
+performed.
+
+The \textbf{LazySelect} algorithm finds the $k$th smallest element in
+a set $S$ (assumed to have a total order) of size $n$. It is
+essentially outputs the element with rank $k$. Concerning notation,
+$A_{(i)}$ will refer to the element with rank $i$ in set $A$ and
+$r_A(j)$ will refer to the rank of element $j$ in set $A$.
 \section{Analysis and expectations}
 
-% \ref{algo}
+We detail the steps of the aforementioned algorithm in Algorithm
+\ref{algo:lazyselect}.
 
 \begin{algorithm}[h]
   \SetAlgoLined
-  \KwIn{A set S of segments}
-  \KwOut{The autopartition binary tree}
+  \KwIn{An (unsorted) array $S$ of size $n$ and and integer $k < n$}
+  \KwOut{The element in $S$ that has rank $k$}
 
-  \nl Pick a random permutation of S and take the first element\;
-  \nl Extend this element into a line and create a node with it in the tree\;
-  \nl Filter the segments strictly to the left in the \texttt{left}
-  child\;
-  \nl Filter the segments strictly to the right in the \texttt{right}
-  child\;
-  \nl \For{segment in all segments that intersect}{
-    \nl add its subsegment laying on the left part to the
-    \texttt{left} child\;
-    \nl add its subsegment laying on the right part to the
-    \texttt{right} child\;
-  }
-  \nl \While{\texttt{left} or \texttt{right} have segments in them}{
-    \nl Repeat this procedure recursively on both sets\;
-  }
+  \nl Take a random sample of $n^{3/4}$ elements of S. Call it $R$\;
+  \nl Sort R\;
+  \nl Define $x = kn^{-1/4}$. With $\ell = \text{max}\{\floor{x -
+    \sqrt{n}}, 1\}$ and $h = \text{min}\{\ceil{x - \sqrt{n}\ \ }, n^{3/4}\}$\;
+  \nl Assign $a = R_{(\ell)}$ and $b = R_{(h)}$\;
+  \nl Determine the rank of $a$ and $b$ in $S$. That is, find $r_{S}(a)$
+  and $r_{S}(b)$\;
+  \nl \uIf{$k < n^{1/4} $}{$P = \{y \in S\ |\ y \leq b\}$}
+  \uElseIf{$k > n - n^{1/4}$}{$P = \{y \in S\ |\ y \geq a\}$}
+  \ElseIf{$k \in [n^{1/4}\, n - n^{1/4}]$}{$P = \{y \in S\ |\ a \leq y
+    \leq b\}$}
+  \nl Check whether $S_{(k)} \in P$ \emph{and} $|P| \leq 4n^{3/4} +
+  2$. If not, repeat steps 1 through 6\;
+  \nl If the conditions are satisfied: sort $P$ and look for $S_{(k)}$
+  in $P$\;
 \caption{\bf LazySelect}
-\label{algo}
+\label{algo:lazyselect}
 \end{algorithm}
 
-% \ref{eq:upper-bound}.
+We can make a few observations about this algorithm:
+\begin{itemize}
+\item By taking $R$, we hope it will be a good representative of the
+  original set $S$.
+\item Any optimal sorting algorithm works for step 2. The number of
+  comparisons performed is sublinear: $\mathcal{O}(n^{3/4}\log(n))$
+\item l and j
+\end{itemize}
 
-\begin{equation}
-  \label{eq:upper-bound}
-  n + 2 \sum_u \sum_{i=1}^{n-1} \frac{1}{i+1} \leq n + 2nH_n
-\end{equation}
+Also, as proved in \cite[p.~49]{motwani}, we have:
 
-% \cite[p.~50]{Motwani:1995:RA:211390}
+\begin{mdframed}
+  \begin{theorem}
+    With probability $1 - \mathcal{O}(n^{-1/4})$,
+    \textbf{\textup{LazySelect}} finds $S_{(k)}$ on the first pass,
+    and thus performs only $2n + o(n)$ comparisons.
+    \label{theo1}
+  \end{theorem}
+\end{mdframed}
+
+
+The elements are put back to simplify the analysis, since the random
+variables used become independent.
+
+$x$ is a sort of rank scaling. Rank $x$ is to $R$ what $k$ is to $S$
+(roughly).
+
+% \cite[p.~50]{motwani}
+
+
 
 \section[Implementation]{Implementation}
 
@@ -100,25 +135,6 @@
 
 % \ref{fig:sample-input}
 
-\begin{minted}[label=sample-output]{clojure}
-"BSpace partitions"
-{:seg {:a {:x 492, :y 556}, :b {:x 388, :y 932}},
- :left
- {:seg {:a {:x 625, :y 409}, :b {:x 530, :y 745}},
-  :left (),
-  :right
-  {:seg {:a {:x 626, :y 355}, :b {:x 588, :y 243}},
-   :left (),
-   :right ()}},
- :right
- {:seg {:a {:x 264, :y 626}, :b {:x -8, :y 571}},
-  :left (),
-  :right
-  {:seg {:a {:x 88, :y 291}, :b {:x 36, :y 79}},
-   :left (),
-   :right ()}}}
-\end{minted}
-
 % \begin{figure}[ht!]
 %   \centering
 %   \includegraphics[width=0.7\textwidth]{img/sample-input.png}
@@ -128,46 +144,18 @@
 
 \section{Results}
 
-% \ref{tab:results}
-
-% \begin{table}[ht!]
-%   \centering
-%   \begin{tabular}[center]{||c|c|c|c|c||}
-%     \hline
-%     \# of segments & Canvas size (px) & Max segment size (px) & Tree size
-%     & Upper bound \\
-%     \hline \hline
-%     10 & 720x720 & 50 & 12 & 68 \\
-%     10 & 720x720 & 50 & 11 & 68 \\
-%     10 & 720x720 & 250 & 14 & 68 \\
-%     100 & 720x720 & 50 & 132 & 1137 \\
-%     100 & 720x720 & 50 & 137 & 1137 \\
-%     100 & 720x720 & 250 & 221 & 1137 \\
-%     1000 & 720x720 & 50 & 2213 & 15970 \\
-%     1000 & 720x720 & 50 & 2262 & 15970 \\
-%     1000 & 720x720 & 250 & 2808 & 15970 \\
-%     2000 & 720x720 & 50 & 5179 & 34713 \\
-%     2000 & 720x720 & 5 & 2395 & 34713 \\
-%     2000 & 720x720 & 250 & 6710 & 34713 \\
-%     5000 & 720x720 & 250 & 16227 & 95945 \\
-%     10000 & 720x720 & 3 & 12698 & 205752 \\
-%     \hline
-%   \end{tabular}
-%   \caption{Simulation results}
-%   \label{tab:results}
-% \end{table}
-
 \section{Conclusion}
-
-\appendix
-\section{Appendix - code listing}
-
-% \inputminted[label=common.clj]{clojure}{../src/bspace_part/common.clj}
-% \inputminted[label=geometry.clj]{clojure}{../src/bspace_part/geometry.clj}
-% \inputminted[label=core.clj]{clojure}{../src/bspace_part/core.clj}
 
 \nocite{*}
 \bibliographystyle{plain}
 \bibliography{refs}
+
+
+\appendix
+\section{Appendix - code listing}
+
+\inputminted[label=core.clj]{clojure}{../src/lazy_selection/core.clj}
+% \inputminted[label=geometry.clj]{clojure}{../src/bspace_part/geometry.clj}
+% \inputminted[label=core.clj]{clojure}{../src/bspace_part/core.clj}
 
 \end{document}

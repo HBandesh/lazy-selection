@@ -13,6 +13,6 @@ clean_tex:
 	cd ${DOC_DIR} && latexmk -C
 
 watch_tex:
-	cd ${DOC_DIR} && latexmk -pdf -pvc
+	cd ${DOC_DIR} && latexmk -shell-escape -pdf -pvc
 
 report: ${REPORT}.pdf clean_aux

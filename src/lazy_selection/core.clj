@@ -46,7 +46,9 @@
           0 quicksort_output))
 
 (defn lazy_select
-  "Returns the kth smallest element in S"
+  "Returns the kth smallest element in S, together with the number of
+  comparisons performed during sorting and calculating the rank of a
+  and b"
   [S k & {:keys [comps] :or {comps 0}}]
   (let [n (count S)
         R (R S)
@@ -54,25 +56,40 @@
         R_sorted (sorted q_sort_R)
         R_comp (+ comps (count_comp q_sort_R))
         x (* k (math/expt n (/ -1 4)))
-        l (max (math/floor (- x (math/sqrt n))) 1)
+        l (max (math/floor (- x (math/sqrt n))) 0)
         h (min (math/ceil (+ x (math/sqrt n))) (math/floor (math/expt n (/ 3 4))))
         a (nth R_sorted l)
         b (nth R_sorted h)
         ra (rank_of a S)
         rb (rank_of b S)
+        rank_comp (- (* 2 n) 2)
+        first_case (atom false)
         P (cond
-            (< k (math/expt n (/ 1 4))) (filter #(<= % b) S)
+            (< k (math/expt n (/ 1 4)))
+            (do
+              (swap! first_case (fn [a] true))
+              (filter #(<= % b) S))
             (> k (- n (math/expt n (/ 1 4)))) (filter #(>= % a) S)
             :else (filter #(and (>= % a) (<= % b)) S))
         q_sort_P (quick_sort P)
         P_sorted (sorted q_sort_P)
         P_comp (count_comp q_sort_P)]
-    (if (and (and (>= k ra) (<= k rb))
+    (if (and (>= k ra)
+             (<= k rb)
              (<= (count P) (+ (* (math/expt n (/ 3 4)) 4) 2)))
-      {:elem (nth P_sorted (+ (- k ra) 1))
-       :comps (+ R_comp P_comp)}
-      (lazy_select S k :comps (+ R_comp P_comp)))))
+      (let [elem (if @first_case
+                   (nth P_sorted (- k 1))
+                   (nth P_sorted (- k ra)))]
+        {:elem elem
+         :comps (+ R_comp P_comp rank_comp)})
+      (lazy_select S k :comps (+ R_comp P_comp rank_comp)))))
 
 
 (defn -main []
-  (lazy_select (shuffle (range 100000)) 500))
+  (let [n 1000
+        k (/ n 2)
+        ;;k (math/floor (math/expt n (/ 1 5)))
+        calls (repeatedly #(lazy_select (random_array n) k))]
+    (println
+     (let [res (map #(:comps %) (take 10 calls))]
+       (int (/ (apply + res) (count res)))))))
